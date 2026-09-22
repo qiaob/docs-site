@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block main %}
+<div class="page">
+  {% include "_readme.html" %}
+  <h1 class="pageh">{{ t('recent') }}</h1>
+  <p class="sub">{{ t('recent_sub', n=total) }}</p>
+  {% include "_doclist.html" %}
+</div>
+{% endblock %}

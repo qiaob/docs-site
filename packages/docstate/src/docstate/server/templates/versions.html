@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ t('versions') }} · {{ doc.title }}{% endblock %}
+{% block main %}
+<div class="page">
+  <div class="crumbs"><a href="/">{{ t('home') }}</a> / <a href="/c/{{ doc.category }}">{{ doc.category }}</a> / <a href="/d/{{ doc.slug }}">{{ doc.title }}</a></div>
+  <h1 class="pageh">{{ t('versions') }}</h1>
+  <p class="sub">{{ t('versions_sub', title=doc.title, n=versions|length) }} <span class="mono">{{ base_url }}/d/{{ doc.slug }}</span></p>
+  <table class="plain">
+    <thead><tr><th>{{ t('version') }}</th><th>{{ t('label') }}</th><th>{{ t('author') }}</th><th>{{ t('time') }}</th><th>{{ t('size') }}</th><th>{{ t('source') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for v in versions %}
+    <tr>
+      <td><b>v{{ v.version_no }}</b>{% if v.version_no == doc.latest_version %} <span class="status approved">{{ t('latest') }}</span>{% endif %}</td>
+      <td>{{ v.label or '' }}</td>
+      <td>{{ v.created_by.split('@')[0] }}</td>
+      <td>{{ v.created_at|local }}</td>
+      <td class="muted">{{ (v.size_bytes / 1024)|round(1) }} KB</td>
+      <td class="muted mono" style="font-size:12px">{{ v.source_path or '' }}</td>
+      <td style="white-space:nowrap"><a href="/d/{{ doc.slug }}?v={{ v.version_no }}">{{ t('view') }}</a> · <a href="/raw/{{ doc.slug }}/{{ v.version_no }}" target="_blank" rel="noopener">{{ t('raw') }}</a> · <a href="/src/{{ doc.slug }}/{{ v.version_no }}">{{ t('source_file') }}</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

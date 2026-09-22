@@ -1,0 +1,6 @@
+{% from "_tree.html" import tree %}
+<h4>{{ t('categories') }} <span class="n">{{ total or '' }}</span></h4>
+<div class="tree">
+  {% if tree_mode == 't' %}<div class="leaf" style="padding-left:24px"><a href="/t" class="{{ 'active' if not current else '' }}">{{ t('all') }}</a></div>{% endif %}
+  {{ tree(tree_nodes, current or '', tree_mode or 'c', current_slug or '') }}
+</div>

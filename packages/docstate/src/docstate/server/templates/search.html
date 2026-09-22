@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ t('search') }} {{ q }} · {{ site_title }}{% endblock %}
+{% block main %}
+<div class="page">
+  <h1 class="pageh">{{ t('search') }}</h1>
+  {% if not q %}
+  <div class="empty">{{ t('search_hint') }}</div>
+  {% else %}
+  <p class="sub">{{ t('search_count', q=q, n=results|length) }}</p>
+  <ul class="items">
+    {% for hit in results %}
+    {% set doc = hit.doc %}
+    <li class="hit">
+      <div class="eyebrow"><a href="/c/{{ doc.category }}">{{ doc.category|replace('/', ' · ') }}</a><span>·</span><span>{{ doc.updated_at|local("%Y-%m-%d") }}</span><span>·</span><span>v{{ doc.latest_version }}</span><span class="kind {{ doc.kind }}">{{ doc.kind }}</span></div>
+      <div class="t"><a href="/d/{{ doc.slug }}">{{ doc.title }}</a></div>
+      {% if hit.snippet %}<div class="s">{{ hit.snippet }}</div>{% endif %}
+      {% if doc.tags %}<div class="tags">{% for tg in doc.tags %}<span class="tag">{{ tg }}</span>{% endfor %}</div>{% endif %}
+    </li>
+    {% else %}
+    <li class="empty">{{ t('no_matches') }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ t('timeline') }} · {{ site_title }}{% endblock %}
+{% block main %}
+<div class="page">
+  <h1 class="pageh">{{ t('timeline') }}</h1>
+  <p class="sub">{% if current %}{{ current }} · <a href="/t">{{ t('see_all') }}</a>{% else %}{{ t('timeline_sub') }}{% endif %}</p>
+  {% for g in groups %}
+  <div class="day">
+    <h2>{{ g.day }}</h2>
+    {% for it in g["items"] %}
+    <div class="ev">
+      <div class="tm">{{ it.version.created_at|local("%H:%M") }}</div>
+      <div>
+        <div class="t">
+          <span class="v {{ 'new' if it.version.version_no == 1 else '' }}">{{ t('new') if it.version.version_no == 1 else 'v' ~ it.version.version_no }}</span>
+          <a href="/d/{{ it.doc.slug }}?v={{ it.version.version_no }}">{{ it.doc.title }}</a>
+          {% if it.version.label %}<span class="muted" style="font-weight:400"> · {{ it.version.label }}</span>{% endif %}
+        </div>
+        <div class="sub"><a href="/c/{{ it.doc.category }}">{{ it.doc.category|replace('/', ' · ') }}</a> · {{ it.version.created_by.split('@')[0] }} · <span class="kind {{ it.doc.kind }}">{{ it.doc.kind }}</span></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">{{ t('no_events') }}</div>
+  {% endfor %}
+</div>
+{% endblock %}

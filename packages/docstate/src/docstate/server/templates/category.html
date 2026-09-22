@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ current }} · {{ site_title }}{% endblock %}
+{% block main %}
+<div class="page">
+  <div class="crumbs"><a href="/">{{ t('home') }}</a>{% for path, name in crumbs %} / <a href="/c/{{ path }}">{{ name }}</a>{% endfor %}</div>
+  <h1 class="pageh">{{ current.split('/')[-1] }}</h1>
+  <p class="sub">{{ t('docs_count', n=docs|length) }} · <a href="/t?category={{ current }}">{{ t('category_timeline') }}</a></p>
+  {% include "_readme.html" %}
+  {% if readme %}<h2 class="listh">{{ t('all_docs') }}</h2>{% endif %}
+  {% include "_doclist.html" %}
+</div>
+{% endblock %}

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }}</title>
+{{ bridge_tag|safe }}
+<style>
+  :root {
+    --line:#e4e4df; --ink:#1a1a18; --ink-2:#2f2f2b; --muted:#77776f; --accent:#2a67b1; --callout:#2f6b8f;
+    --code-bg:#ecece8; --note-bg:#fff6dc; --note-line:#e2c67f;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Hiragino Sans GB","Helvetica Neue","Segoe UI",sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --measure:700px;  /* reading measure */
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: #f5f5f2; color: var(--ink); font: 15.5px/1.78 var(--font); font-feature-settings: "tnum" on; }
+  .doc { max-width: 1120px; margin: 0 auto; padding: 36px 24px 90px; }
+  .doc.embed { max-width: none; margin: 0; padding: 2px 0 28px; }
+  .doc.embed h1 { font-size: 26px; margin-bottom: 14px; }
+  /* prose keeps the reading measure; charts, tables and code may use the whole container */
+  .doc > p, .doc > ul, .doc > ol, .doc > h1, .doc > h2, .doc > h3, .doc > h4, .doc > blockquote, .doc > .eyebrow,
+  .doc > dl, .doc > .footnotes, .doc > hr { max-width: var(--measure); }
+  .doc > pre, .doc > table, .doc > figure, .doc > .mermaid, .doc > p > img { max-width: 100%; }
+
+  .eyebrow { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; line-height: 1.6; }
+  .eyebrow a { color: inherit; }
+  h1 { font-size: 34px; line-height: 1.22; font-weight: 750; letter-spacing: -.025em; margin: 0 0 18px; }
+  h2 { font-size: 21px; font-weight: 700; letter-spacing: -.015em; margin: 46px 0 12px; line-height: 1.35; }
+  h3 { font-size: 17px; font-weight: 700; margin: 30px 0 8px; }
+  h4 { font-size: 15.5px; font-weight: 700; margin: 22px 0 6px; }
+  p { margin: 10px 0; color: var(--ink-2); }
+  h1 + p { font-size: 16px; color: #3a3a36; }
+  ul, ol { padding-left: 22px; color: var(--ink-2); }
+  li { margin: 4px 0; }
+  li > p { margin: 4px 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  strong { color: var(--ink); font-weight: 650; }
+  a strong, a code { color: inherit; }  /* a bold or code link keeps the link colour */
+  blockquote { margin: 20px 0; padding: 14px 20px; background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--callout);
+               border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,.03); color: var(--ink-2); }
+  blockquote > p:first-child { margin-top: 0; }
+  blockquote > p:last-child { margin-bottom: 0; }
+  blockquote > p:first-child > strong:only-child, blockquote > p:first-child > strong:first-child { font-size: 16px; color: var(--ink); }
+  code { font-family: var(--mono); font-size: 13px; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto;
+        font-size: 13px; line-height: 1.6; margin: 16px 0; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  pre.mermaid { background: #fff; text-align: center; padding: 20px; }
+  table { border-collapse: collapse; margin: 16px 0; font-size: 14px; display: block; overflow-x: auto; width: max-content; max-width: 100%; }
+  th, td { border: 1px solid var(--line); padding: 7px 12px; text-align: left; vertical-align: top; }
+  th { background: #f0f0ec; font-weight: 600; white-space: nowrap; }
+  tr:nth-child(even) td { background: #fafaf8; }
+  img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 34px 0; }
+  .task-list-item { list-style: none; margin-left: -20px; }
+  .task-list-item input { margin-right: 7px; }
+  .task-saved { font-size: 12px; color: #2f7d4f; margin-left: 8px; opacity: 1; transition: opacity .6s; }
+  .task-saved.fade { opacity: 0; }
+  .task-saved.err { color: #b83a2f; }
+  .wikilink { border-bottom: 1px solid #c6d7ec; }
+  .wikilink.missing { color: #999; border-bottom: 1px dashed #bbb; cursor: help; }
+  .footnotes { font-size: 13px; color: var(--muted); margin-top: 44px; }
+  .footnotes-sep { display: none; }
+  sup a { font-size: 11px; }
+  {{ pygments_css|safe }}
+</style>
+</head>
+<body>
+<div class="doc{% if embed %} embed{% endif %}">
+{% if eyebrow %}<div class="eyebrow">{{ eyebrow }}</div>{% endif %}
+{% if not has_h1 %}<h1>{{ title }}</h1>{% endif %}
+{{ body|safe }}
+</div>
+{% if needs_mermaid %}
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>if (window.mermaid) { mermaid.initialize({ startOnLoad: true, securityLevel: 'loose', theme: 'neutral' }); }</script>
+{% endif %}
+{% if has_tasks %}
+<script>
+// Task-list checkboxes persist through DocState. Key = position + label text,
+// so reordering unrelated paragraphs does not lose a tick; editing a label resets it.
+(function () {
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('input.task-list-item-checkbox'));
+  if (!boxes.length || !window.DocState) return;
+  var SCOPE = {{ task_scope|tojson }}, KEY = 'md-tasks', lock = 0, UI = {{ ui|tojson }};
+  var keys = boxes.map(function (cb, i) {
+    var li = cb.closest('li');
+    return i + ':' + (li ? li.textContent : '').trim().slice(0, 80);
+  });
+  function apply(state) {
+    if (Date.now() < lock) return;
+    state = state || {};
+    boxes.forEach(function (cb, i) { if (keys[i] in state) cb.checked = !!state[keys[i]]; });
+  }
+  function hint(cb, text, err) {
+    var li = cb.closest('li') || cb.parentNode;
+    var old = li.querySelector('.task-saved'); if (old) old.remove();
+    var s = document.createElement('span');
+    s.className = 'task-saved' + (err ? ' err' : ''); s.textContent = text;
+    li.appendChild(s);
+    setTimeout(function () { s.classList.add('fade'); }, 1200);
+    setTimeout(function () { s.remove(); }, 1900);
+  }
+  DocState.ready.then(function () {
+    DocState.get(KEY, { scope: SCOPE }).then(apply).catch(function () {});
+    boxes.forEach(function (cb, i) {
+      cb.disabled = false;
+      cb.addEventListener('change', function () {
+        lock = Date.now() + 4000;
+        DocState.get(KEY, { scope: SCOPE }).then(function (state) {
+          state = state || {}; state[keys[i]] = cb.checked;
+          return DocState.set(KEY, state, { scope: SCOPE });
+        }).then(function () {
+          hint(cb, DocState.inShell ? (SCOPE === 'shared' ? UI.saved_shared : UI.saved_me) : UI.saved_memory);
+        }).catch(function () { hint(cb, UI.save_failed, true); });
+      });
+    });
+    if (SCOPE === 'shared') DocState.subscribe(KEY, apply, { scope: 'shared' });
+  });
+})();
+</script>
+{% endif %}
+</body>
+</html>

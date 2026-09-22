@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docstate
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # SQLite + PVC is single-replica; with PostgreSQL use RollingUpdate and more replicas
+  selector:
+    matchLabels:
+      app: docstate
+  template:
+    metadata:
+      labels:
+        app: docstate
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: docstate
+          image: ghcr.io/qiaob/docs-site
+          ports:
+            - containerPort: 8787
+          envFrom:
+            - configMapRef:
+                name: docstate
+            - secretRef:
+                name: docstate
+                optional: true   # DOCSTATE_API_TOKENS, DOCSTATE_AUTH_PROXY_SECRET, database credentials
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8787
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8787
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: docstate-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: docstate-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>交互能力验证台</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --line:#e4e4df; --ink:#1a1a18; --ink-2:#3d3d39; --muted:#77776f; --accent:#2a67b1; --soft:#e9f0f9; --ok:#2f7d4f; --warn:#a9711a; --danger:#b83a2f; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#f5f5f2; color:var(--ink); font:15px/1.7 -apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Helvetica Neue","Segoe UI",sans-serif; }
+  .doc { max-width:1120px; margin:0 auto; padding:36px 24px 80px; }
+  .eyebrow { font-size:12px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  h1 { font-size:34px; line-height:1.22; font-weight:750; letter-spacing:-.025em; margin:0 0 14px; }
+  .lead { max-width:700px; color:var(--ink-2); font-size:16px; margin:0 0 22px; }
+  h2 { font-size:21px; font-weight:700; letter-spacing:-.015em; margin:40px 0 12px; }
+  h3 { font-size:16px; margin:22px 0 8px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+  .callout { background:#fff; border:1px solid var(--line); border-left:4px solid #2f6b8f; border-radius:10px; padding:12px 18px; max-width:700px; color:var(--ink-2); }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin:18px 0 16px; }
+  .tabs button { background:none; border:0; border-bottom:2px solid transparent; padding:8px 14px; font:inherit; font-size:14.5px; color:var(--muted); cursor:pointer; }
+  .tabs button.on { color:var(--ink); border-bottom-color:var(--accent); font-weight:600; }
+  .tabs button kbd { font:11px ui-monospace,Menlo,monospace; color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:0 4px; margin-left:6px; }
+  .pane { display:none; } .pane.on { display:block; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .row label { display:inline-flex; align-items:center; gap:6px; font-size:14px; color:var(--ink-2); }
+  input[type=text], input[type=search], select, textarea { font:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--soft); }
+  button.btn { font:inherit; font-size:13.5px; padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; }
+  button.btn:hover { background:#f0f0ec; }
+  button.btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.btn.small { padding:3px 8px; font-size:12px; }
+  .chartbox { position:relative; height:320px; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th, td { border-bottom:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:middle; }
+  th { background:#f6f6f3; font-weight:600; font-size:12.5px; color:var(--ink-2); cursor:pointer; user-select:none; white-space:nowrap; }
+  th .dir { color:var(--muted); font-size:11px; margin-left:4px; }
+  tr:hover td { background:#fafaf8; }
+  td.num { font-variant-numeric:tabular-nums; text-align:right; }
+  .star { cursor:pointer; color:#c9c9c2; font-size:16px; } .star.on { color:#e0a300; }
+  .pager { display:flex; gap:8px; align-items:center; margin-top:12px; font-size:13px; color:var(--muted); }
+  .board { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .col { background:#f0f0ec; border-radius:12px; padding:12px; min-height:220px; }
+  .col h3 { margin:0 0 10px; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); display:flex; justify-content:space-between; }
+  .col.over { outline:2px dashed var(--accent); outline-offset:-2px; }
+  .kcard { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; cursor:grab; box-shadow:0 1px 2px rgba(0,0,0,.04); font-size:14px; }
+  .kcard:active { cursor:grabbing; }
+  .kcard .m { color:var(--muted); font-size:12px; margin-top:4px; display:flex; justify-content:space-between; }
+  .kcard .m button { background:none; border:0; color:var(--muted); cursor:pointer; padding:0; font-size:12px; }
+  .kcard .m button:hover { color:var(--danger); }
+  dialog { border:1px solid var(--line); border-radius:14px; padding:22px 24px; max-width:460px; width:90%; box-shadow:0 20px 50px rgba(0,0,0,.18); }
+  dialog::backdrop { background:rgba(20,20,18,.35); }
+  dialog h3 { margin:0 0 10px; }
+  dialog .row { margin-top:12px; justify-content:flex-end; }
+  .probe { display:grid; grid-template-columns:200px 1fr; gap:6px 14px; font-size:13.5px; }
+  .probe .k { color:var(--muted); }
+  .badge { display:inline-block; font-size:11px; padding:1px 7px; border-radius:20px; border:1px solid var(--line); color:var(--muted); }
+  .badge.ok { color:var(--ok); border-color:#bfe0cb; } .badge.no { color:var(--danger); border-color:#efc3bf; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#1a1a18; color:#fff; padding:8px 14px; border-radius:8px; font-size:13px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show { opacity:.92; }
+  details { margin:10px 0; } summary { cursor:pointer; font-weight:600; }
+  code { font:13px ui-monospace,"SF Mono",Menlo,monospace; background:#ecece8; padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <div class="eyebrow">DEMO · 交互验证 · 当前读者 <span id="who">…</span></div>
+  <h1>交互能力验证台</h1>
+  <p class="lead">这一页故意堆了常见的重交互：外链图表库、可排序可筛选的表格、原生弹窗、拖拽看板、键盘快捷键。全部在沙箱 iframe 里运行，需要记住的东西通过 DocState 存到服务端。</p>
+  <div class="callout"><b>怎么验</b>：切标签页看页面高度是否跟着变；勾几个图表系列、给表格打星、把看板卡片拖来拖去，然后刷新页面或换一个读者身份再回来看。</div>
+
+  <div class="tabs" id="tabs">
+    <button data-tab="chart" class="on">图表 <kbd>1</kbd></button>
+    <button data-tab="table">表格 <kbd>2</kbd></button>
+    <button data-tab="board">看板 <kbd>3</kbd></button>
+    <button data-tab="probe">环境探测 <kbd>4</kbd></button>
+  </div>
+
+  <!-- ================= 图表 ================= -->
+  <section class="pane on" id="pane-chart">
+    <h2>图表：Chart.js 从 cdnjs 加载</h2>
+    <div class="card">
+      <div class="row" style="margin-bottom:12px">
+        <label><input type="checkbox" data-series="0" checked> iOS</label>
+        <label><input type="checkbox" data-series="1" checked> Android</label>
+        <label><input type="checkbox" data-series="2"> Web</label>
+        <label style="margin-left:auto">窗口 <select id="days"><option value="7">近 7 天</option><option value="14">近 14 天</option><option value="30" selected>近 30 天</option></select></label>
+        <span class="badge" id="chart-saved">系列开关按读者保存</span>
+      </div>
+      <div class="chartbox"><canvas id="chart"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ================= 表格 ================= -->
+  <section class="pane" id="pane-table">
+    <h2>表格：排序、筛选、分页、行详情弹窗</h2>
+    <div class="card">
+      <div class="row" style="margin-bottom:12px">
+        <input type="search" id="q" placeholder="按国家 / 渠道筛选，快捷键 /" style="width:260px">
+        <label>只看已打星 <input type="checkbox" id="only-star"></label>
+        <span class="badge" id="star-count">0 星</span>
+        <button class="btn" id="confirm-btn" style="margin-left:auto">confirm() 测试</button>
+      </div>
+      <table id="tbl">
+        <thead><tr>
+          <th data-k="star"></th>
+          <th data-k="country">国家 <span class="dir"></span></th>
+          <th data-k="channel">渠道 <span class="dir"></span></th>
+          <th data-k="installs" class="num">安装 <span class="dir"></span></th>
+          <th data-k="d1" class="num">次留 <span class="dir"></span></th>
+          <th data-k="arpu" class="num">ARPU <span class="dir"></span></th>
+          <th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="pager"><button class="btn small" id="prev">上一页</button><span id="pageinfo"></span><button class="btn small" id="next">下一页</button></div>
+    </div>
+    <dialog id="dlg">
+      <h3 id="dlg-title">行详情</h3>
+      <div id="dlg-body" class="probe"></div>
+      <label style="display:block;margin-top:12px;font-size:13px;color:#77776f">备注（按读者保存）</label>
+      <textarea id="dlg-note" rows="3" style="width:100%"></textarea>
+      <div class="row"><button class="btn" id="dlg-cancel">取消</button><button class="btn primary" id="dlg-save">保存</button></div>
+    </dialog>
+  </section>
+
+  <!-- ================= 看板 ================= -->
+  <section class="pane" id="pane-board">
+    <h2>看板：HTML5 拖拽，状态全员共享</h2>
+    <div class="row" style="margin-bottom:12px">
+      <input type="text" id="new-card" placeholder="新卡片标题，回车添加" style="width:320px">
+      <button class="btn primary" id="add-card">添加到「待办」</button>
+      <span class="badge" id="board-meta">共享状态</span>
+    </div>
+    <div class="board" id="board">
+      <div class="col" data-col="todo"><h3>待办 <span class="n"></span></h3></div>
+      <div class="col" data-col="doing"><h3>进行中 <span class="n"></span></h3></div>
+      <div class="col" data-col="done"><h3>完成 <span class="n"></span></h3></div>
+    </div>
+  </section>
+
+  <!-- ================= 环境探测 ================= -->
+  <section class="pane" id="pane-probe">
+    <h2>环境探测：沙箱里能做什么、不能做什么</h2>
+    <div class="card"><div class="probe" id="probe"></div></div>
+    <details><summary>说明</summary>
+      <p>文档运行在 <code>sandbox</code> 的 iframe 里，是一个 opaque origin：没有 cookie、没有 localStorage、不能直接调站点接口、<code>connect-src 'none'</code> 挡住任意 fetch。外链脚本只放行 cdnjs 与 jsdelivr。要记住的东西走 <code>DocState</code>。</p>
+    </details>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- helpers ----------
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
+let toastTimer;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1600); }
+function seeded(n) { let x = 42 + n; return () => { x = (x * 1103515245 + 12345) & 0x7fffffff; return x / 0x7fffffff; }; }
+
+// ---------- tabs + shortcuts ----------
+const tabs = $('#tabs');
+function showTab(name) {
+  $$('button', tabs).forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  $$('.pane').forEach(p => p.classList.toggle('on', p.id === 'pane-' + name));
+  if (name === 'chart' && window.__chart) window.__chart.resize();
+  DocState.set('tab', name, { scope: 'me' });
+}
+tabs.addEventListener('click', e => { const b = e.target.closest('button'); if (b) showTab(b.dataset.tab); });
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input, textarea, select')) return;
+  const map = { '1': 'chart', '2': 'table', '3': 'board', '4': 'probe' };
+  if (map[e.key]) { showTab(map[e.key]); toast('快捷键 ' + e.key + ' → ' + map[e.key]); }
+  if (e.key === '/') { e.preventDefault(); showTab('table'); $('#q').focus(); }
+});
+
+// ---------- chart ----------
+const days = 30, rnd = seeded(7);
+const labels = Array.from({ length: days }, (_, i) => { const d = new Date(2026, 8, 9 - (days - 1 - i)); return (d.getMonth() + 1) + '/' + d.getDate(); });
+const series = [
+  { label: 'iOS', color: '#2a67b1', base: 11500 },
+  { label: 'Android', color: '#2f7d4f', base: 2500 },
+  { label: 'Web', color: '#a9711a', base: 600 },
+].map(s => ({ ...s, data: labels.map((_, i) => Math.round(s.base * (0.9 + 0.25 * rnd()) * (1 + 0.004 * i))) }));
+let chart = null, chartPrefs = { on: [true, true, false], days: 30 };
+function drawChart() {
+  const n = chartPrefs.days;
+  const cfg = {
+    type: 'line',
+    data: { labels: labels.slice(-n), datasets: series.map((s, i) => ({ label: s.label, data: s.data.slice(-n), borderColor: s.color, backgroundColor: s.color + '22', tension: .3, pointRadius: 2, hidden: !chartPrefs.on[i], fill: false })) },
+    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 250 }, plugins: { legend: { position: 'bottom' } }, scales: { y: { grid: { color: '#eeeeea' } }, x: { grid: { display: false } } } },
+  };
+  if (!window.Chart) { $('#chart').parentElement.innerHTML = '<div class="badge no">Chart.js 没有加载到（CSP 或网络）</div>'; return; }
+  if (chart) chart.destroy();
+  chart = new Chart($('#chart'), cfg); window.__chart = chart;
+}
+$$('input[data-series]').forEach(cb => cb.addEventListener('change', () => {
+  chartPrefs.on[+cb.dataset.series] = cb.checked; drawChart();
+  DocState.set('chart', chartPrefs, { scope: 'me' }).then(() => { $('#chart-saved').textContent = '已保存 · 仅自己可见'; $('#chart-saved').className = 'badge ok'; });
+}));
+$('#days').addEventListener('change', e => { chartPrefs.days = +e.target.value; drawChart(); DocState.set('chart', chartPrefs, { scope: 'me' }); });
+
+// ---------- table ----------
+const countries = ['US', 'GB', 'AU', 'SG', 'CA', 'HK', 'DE', 'FR', 'NZ', 'IE'], channels = ['Apple Search Ads', 'Google UAC', 'Meta', 'TikTok', 'Organic', 'Referral'];
+const r2 = seeded(99);
+const rows = Array.from({ length: 60 }, (_, i) => ({ id: i + 1, country: countries[i % countries.length], channel: channels[Math.floor(r2() * channels.length)], installs: Math.round(200 + r2() * 4800), d1: +(20 + r2() * 30).toFixed(1), arpu: +(0.4 + r2() * 3.2).toFixed(2) }));
+let sortK = 'installs', sortDir = -1, page = 0, stars = {}, notes = {}, filter = '', onlyStar = false;
+const PAGE = 10;
+function visibleRows() {
+  let v = rows.filter(r => (!filter || (r.country + ' ' + r.channel).toLowerCase().includes(filter)) && (!onlyStar || stars[r.id]));
+  v.sort((a, b) => { if (sortK === 'star') return ((stars[b.id] ? 1 : 0) - (stars[a.id] ? 1 : 0)) * -sortDir; const x = a[sortK], y = b[sortK]; return (x > y ? 1 : x < y ? -1 : 0) * sortDir; });
+  return v;
+}
+function renderTable() {
+  const v = visibleRows(), pages = Math.max(1, Math.ceil(v.length / PAGE)); page = Math.min(page, pages - 1);
+  const tb = $('#tbl tbody'); tb.innerHTML = '';
+  v.slice(page * PAGE, page * PAGE + PAGE).forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="star ${stars[r.id] ? 'on' : ''}" data-id="${r.id}" title="打星（按读者保存）">★</span></td><td>${r.country}</td><td>${r.channel}</td><td class="num">${r.installs.toLocaleString()}</td><td class="num">${r.d1}%</td><td class="num">$${r.arpu.toFixed(2)}</td><td><button class="btn small" data-open="${r.id}">详情${notes[r.id] ? ' ·' : ''}</button></td>`;
+    tb.appendChild(tr);
+  });
+  $$('th[data-k]').forEach(th => { const d = $('.dir', th); if (d) d.textContent = th.dataset.k === sortK ? (sortDir > 0 ? '▲' : '▼') : ''; });
+  $('#pageinfo').textContent = `第 ${page + 1} / ${pages} 页 · 共 ${v.length} 行`;
+  $('#star-count').textContent = Object.values(stars).filter(Boolean).length + ' 星';
+}
+$('#tbl thead').addEventListener('click', e => { const th = e.target.closest('th[data-k]'); if (!th) return; if (sortK === th.dataset.k) sortDir *= -1; else { sortK = th.dataset.k; sortDir = -1; } renderTable(); });
+$('#tbl tbody').addEventListener('click', e => {
+  const s = e.target.closest('.star'); if (s) { const id = +s.dataset.id; stars[id] = !stars[id]; renderTable(); DocState.set('stars', stars, { scope: 'me' }).then(() => toast('打星已保存，仅自己可见')); return; }
+  const b = e.target.closest('button[data-open]'); if (b) openRow(+b.dataset.open);
+});
+$('#q').addEventListener('input', e => { filter = e.target.value.trim().toLowerCase(); page = 0; renderTable(); });
+$('#only-star').addEventListener('change', e => { onlyStar = e.target.checked; page = 0; renderTable(); });
+$('#prev').addEventListener('click', () => { page = Math.max(0, page - 1); renderTable(); });
+$('#next').addEventListener('click', () => { page++; renderTable(); });
+$('#confirm-btn').addEventListener('click', () => { const ok = confirm('原生 confirm() 在沙箱里能弹吗？'); toast(ok ? 'confirm 返回 true' : 'confirm 返回 false'); });
+let dlgRow = null;
+function openRow(id) {
+  dlgRow = rows.find(r => r.id === id);
+  $('#dlg-title').textContent = `#${id} ${dlgRow.country} · ${dlgRow.channel}`;
+  $('#dlg-body').innerHTML = [['安装', dlgRow.installs.toLocaleString()], ['次留', dlgRow.d1 + '%'], ['ARPU', '$' + dlgRow.arpu.toFixed(2)], ['已打星', stars[id] ? '是' : '否']].map(([k, v]) => `<span class="k">${k}</span><span>${v}</span>`).join('');
+  $('#dlg-note').value = notes[id] || '';
+  $('#dlg').showModal();
+}
+$('#dlg-cancel').addEventListener('click', () => $('#dlg').close());
+$('#dlg-save').addEventListener('click', () => { notes[dlgRow.id] = $('#dlg-note').value; $('#dlg').close(); renderTable(); DocState.set('notes', notes, { scope: 'me' }).then(() => toast('备注已保存，仅自己可见')); });
+
+// ---------- board (shared) ----------
+let board = { cards: [] }, boardLock = 0;
+const seedCards = [{ id: 'c1', t: '把 docs 仓的相对链接改写成站内链接', col: 'todo' }, { id: 'c2', t: 'assets 目录的图片按原路径提供', col: 'todo' }, { id: 'c3', t: '公网入口方案和 SRE 对齐', col: 'doing' }, { id: 'c4', t: '读者站原型第一版', col: 'done' }];
+function renderBoard() {
+  $$('.col').forEach(col => { $$('.kcard', col).forEach(c => c.remove()); });
+  board.cards.forEach(c => {
+    const col = $(`.col[data-col="${c.col}"]`); if (!col) return;
+    const el = document.createElement('div'); el.className = 'kcard'; el.draggable = true; el.dataset.id = c.id;
+    el.innerHTML = `<div>${c.t.replace(/</g, '&lt;')}</div><div class="m"><span>${c.by ? c.by.split('@')[0] : ''}</span><button data-del="${c.id}" title="删除">删除</button></div>`;
+    col.appendChild(el);
+  });
+  $$('.col').forEach(col => { $('.n', col).textContent = $$('.kcard', col).length; });
+  $('#board-meta').textContent = board.updated_by ? `最后由 ${board.updated_by.split('@')[0]} 更新` : '共享状态';
+}
+function saveBoard() { boardLock = Date.now() + 4000; board.updated_by = DocState.viewer() || '匿名'; renderBoard(); return DocState.set('board', board, { scope: 'shared' }).then(() => toast('看板已保存，全员共享')); }
+let dragId = null;
+document.addEventListener('dragstart', e => { const c = e.target.closest && e.target.closest('.kcard'); if (!c) return; dragId = c.dataset.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragId); });
+$$('.col').forEach(col => {
+  col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('over'); });
+  col.addEventListener('dragleave', () => col.classList.remove('over'));
+  col.addEventListener('drop', e => { e.preventDefault(); col.classList.remove('over'); const id = dragId || e.dataTransfer.getData('text/plain'); const c = board.cards.find(x => x.id === id); if (c && c.col !== col.dataset.col) { c.col = col.dataset.col; c.by = DocState.viewer(); saveBoard(); } dragId = null; });
+});
+$('#board').addEventListener('click', e => { const b = e.target.closest('button[data-del]'); if (!b) return; board.cards = board.cards.filter(c => c.id !== b.dataset.del); saveBoard(); });
+function addCard() { const t = $('#new-card').value.trim(); if (!t) return; board.cards.push({ id: 'c' + Date.now().toString(36), t, col: 'todo', by: DocState.viewer() }); $('#new-card').value = ''; saveBoard(); }
+$('#add-card').addEventListener('click', addCard);
+$('#new-card').addEventListener('keydown', e => { if (e.key === 'Enter') addCard(); });
+
+// ---------- probe ----------
+async function probe() {
+  const out = [];
+  const yes = (k, v, ok) => out.push(`<span class="k">${k}</span><span><span class="badge ${ok ? 'ok' : 'no'}">${v}</span></span>`);
+  yes('在壳页内', DocState.inShell ? '是' : '否', DocState.inShell);
+  yes('读者身份', DocState.viewer() || '无', !!DocState.viewer());
+  yes('origin', location.origin, location.origin !== 'null');
+  let ck; try { ck = document.cookie ? '有内容' : '空'; } catch (e) { ck = '读取被禁止（' + e.name + '）'; } yes('document.cookie', ck, ck !== '有内容');
+  let ls; try { localStorage.setItem('x', '1'); ls = '可用'; } catch (e) { ls = '被沙箱禁止（' + e.name + '）'; } yes('localStorage', ls, ls !== '可用');
+  let f; try { await fetch('/api/docs'); f = '通了'; } catch (e) { f = '被 CSP 挡住'; } yes('直接 fetch 站点接口', f, f !== '通了');
+  yes('Chart.js（cdnjs）', window.Chart ? '已加载 ' + Chart.version : '未加载', !!window.Chart);
+  let cb; try { await navigator.clipboard.writeText('docstate'); cb = '可写'; } catch (e) { cb = '不可用（' + e.name + '）'; } yes('剪贴板', cb, cb === '可写');
+  yes('dialog.showModal', typeof HTMLDialogElement !== 'undefined' ? '支持' : '不支持', typeof HTMLDialogElement !== 'undefined');
+  yes('window.parent 可达', (() => { try { return window.parent.document ? '能读（不该）' : '?'; } catch (e) { return '被隔离（正确）'; } })(), true);
+  $('#probe').innerHTML = out.join('');
+}
+
+// ---------- boot ----------
+async function main() {
+  const ctx = await DocState.ready;
+  $('#who').textContent = ctx && ctx.viewer ? ctx.viewer : '（独立打开）';
+  const [tab, cp, st, nt, bd] = await Promise.all([
+    DocState.get('tab', { scope: 'me' }), DocState.get('chart', { scope: 'me' }), DocState.get('stars', { scope: 'me' }),
+    DocState.get('notes', { scope: 'me' }), DocState.get('board', { scope: 'shared' }),
+  ]);
+  if (cp && cp.on) { chartPrefs = cp; $$('input[data-series]').forEach((cb, i) => cb.checked = !!cp.on[i]); $('#days').value = String(cp.days || 30); $('#chart-saved').textContent = '已恢复你上次的设置'; $('#chart-saved').className = 'badge ok'; }
+  stars = st || {}; notes = nt || {};
+  board = bd && bd.cards ? bd : { cards: seedCards.map(c => ({ ...c })) };
+  drawChart(); renderTable(); renderBoard(); probe();
+  if (tab) showTab(tab);
+  DocState.subscribe('board', v => { if (Date.now() < boardLock || !v || !v.cards) return; board = v; renderBoard(); }, { scope: 'shared', interval: 3000 });
+}
+main();
+</script>
+</body>
+</html>

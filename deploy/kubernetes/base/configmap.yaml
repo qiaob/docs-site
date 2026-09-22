@@ -1,0 +1,14 @@
+# Non-secret configuration. Tokens and database passwords belong in a Secret
+# named `docstate` (envFrom in the Deployment).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: docstate
+data:
+  DOCSTATE_STORAGE_URL: sqlite:////data/docstate.db
+  DOCSTATE_BASE_URL: https://docs.example.com
+  DOCSTATE_AUTH_MODE: header
+  DOCSTATE_AUTH_HEADER: X-Forwarded-Email
+  DOCSTATE_SITE_TITLE: Docstate
+  DOCSTATE_LANG: en
+  DOCSTATE_TZ: UTC

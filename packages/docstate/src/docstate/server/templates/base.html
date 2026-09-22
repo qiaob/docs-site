@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ site_title }}{% endblock %}</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      --bg:#f5f5f2; --card:#fff; --line:#e4e4df; --line-2:#d3d3cb; --ink:#1a1a18; --ink-2:#3d3d39;
+      --muted:#77776f; --accent:#2a67b1; --accent-ink:#1f4f88; --accent-soft:#e9f0f9; --hover:#ebebe6;
+      --ok:#2f7d4f; --warn:#a9711a; --danger:#b83a2f;
+      --font:-apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Hiragino Sans GB","Helvetica Neue","Segoe UI",sans-serif;
+      --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    }
+    * { box-sizing:border-box; }
+    html { -webkit-text-size-adjust:100%; }
+    body { margin:0; font:15px/1.65 var(--font); color:var(--ink); background:var(--bg); }
+    a { color:var(--accent); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    button { font:inherit; }
+
+    /* ---- top bar ---- */
+    header.top { height:52px; display:flex; align-items:center; gap:14px; padding:0 18px; background:var(--bg);
+                 border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20; }
+    .iconbtn { width:32px; height:32px; border:0; background:none; border-radius:8px; color:var(--muted); cursor:pointer;
+               display:inline-flex; align-items:center; justify-content:center; padding:0; flex:none; }
+    .iconbtn:hover { background:var(--hover); color:var(--ink); }
+    .iconbtn svg { width:18px; height:18px; }
+    .top .brand { font-weight:700; color:var(--ink); letter-spacing:-.01em; white-space:nowrap; }
+    .top .brand:hover { text-decoration:none; }
+    .top nav { display:flex; gap:14px; }
+    .top nav a { color:var(--muted); font-size:14px; }
+    .top nav a.active, .top nav a:hover { color:var(--ink); text-decoration:none; }
+    .top .center { flex:1; min-width:0; display:flex; align-items:center; gap:10px; justify-content:flex-end; }
+    .top form.search { margin:0; }
+    .top input[type=search] { width:300px; max-width:40vw; padding:7px 12px; border:1px solid var(--line); border-radius:8px;
+                              font:inherit; font-size:14px; background:#fff; color:var(--ink); }
+    .top input[type=search]:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+    .top .who { display:flex; align-items:center; gap:8px; flex:none; }
+    .avatar { width:28px; height:28px; border-radius:50%; background:#d9463f; color:#fff; font-size:11px; font-weight:700;
+              display:inline-flex; align-items:center; justify-content:center; letter-spacing:.02em; flex:none; }
+    .top select.viewer { border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 8px; font:inherit;
+                         font-size:13px; color:var(--ink-2); max-width:230px; }
+
+    /* ---- shell: side | main | rail ---- */
+    .shell { display:flex; align-items:flex-start; min-height:calc(100vh - 52px); --side-w:320px; }
+    aside.side { width:var(--side-w); flex:none; position:sticky; top:52px; height:calc(100vh - 52px); overflow:auto;
+                 padding:18px 12px 30px 16px; border-right:1px solid var(--line); }
+    /* resize grip: a 7px strip laid over the sidebar's right border, taking no room of its own.
+       Dragging it sets --side-w (script below). */
+    .sidegrip { width:7px; flex:none; margin:0 -3px 0 -4px; position:sticky; top:52px; height:calc(100vh - 52px);
+                cursor:col-resize; z-index:5; touch-action:none; }
+    .sidegrip:hover, .sidegrip.on { background:var(--accent-soft); }
+    .shell.side-hidden aside.side, .shell.side-hidden .sidegrip { display:none; }
+    body.sideresize { cursor:col-resize; user-select:none; -webkit-user-select:none; }
+    body.sideresize iframe { pointer-events:none; }   /* a document frame must not swallow the drag */
+    main { flex:1; min-width:0; }
+    .side h4, .rail h4 { font-size:11.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted);
+                         margin:0 0 10px 6px; font-weight:600; display:flex; align-items:center; justify-content:space-between; }
+    .side h4 .n { font-weight:500; letter-spacing:0; text-transform:none; }
+
+    /* category tree: <details> nodes, collapsible */
+    .tree { font-size:13.5px; }
+    .tree details { margin:0; }
+    .tree summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:2px; padding:3px 6px; border-radius:6px; color:var(--ink-2); }
+    .tree summary::-webkit-details-marker { display:none; }
+    .tree summary:hover, .tree .leaf:hover { background:var(--hover); }
+    .tree .tri { width:16px; flex:none; color:var(--muted); font-size:9px; display:inline-block; text-align:center; transition:transform .15s; }
+    .tree details[open] > summary .tri { transform:rotate(90deg); }
+    .tree a { color:inherit; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .tree a:hover { text-decoration:none; }
+    .tree a.active { color:var(--accent); font-weight:600; }
+    .tree .count { color:var(--muted); font-size:11.5px; margin-left:6px; flex:none; }
+    .tree .leaf { display:flex; align-items:center; padding:3px 6px 3px 24px; border-radius:6px; color:var(--ink-2); }
+    .tree details > div { padding-left:14px; }
+    .tree .file { display:flex; align-items:center; padding:2px 6px 2px 24px; border-radius:6px; color:var(--ink-2); font-size:13px; }
+    .tree .file:hover { background:var(--hover); }
+    .tree .file .kind { color:var(--muted); font-size:10px; margin-left:6px; flex:none; text-transform:uppercase; }
+    .tree > details > summary { font-weight:600; color:var(--ink); }
+
+    /* ---- pages ---- */
+    /* One content geometry for every page: a 1120px column centered in the main area, text 36px
+       in from its edge. Every page keeps a 240px column on the right — the document page's
+       outline rail, an empty spacer elsewhere — so the main area, and with it the centering,
+       is the same width on a category page and on a document page. */
+    .page { max-width:1120px; margin:0 auto; padding:30px 36px 60px; }
+    .railspace, aside.rail { width:240px; flex:none; }
+    @media (max-width:1100px) { .railspace, aside.rail { display:none; } }
+    .page.wide { max-width:1180px; }
+    h1.pageh { font-size:24px; letter-spacing:-.02em; margin:0 0 6px; font-weight:750; }
+    .sub { color:var(--muted); font-size:13.5px; margin:0 0 18px; }
+    .eyebrow { font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); display:flex; gap:8px;
+               flex-wrap:wrap; align-items:center; }
+    .eyebrow a { color:inherit; }
+    .items { list-style:none; margin:0; padding:0; }
+    .items li { padding:16px 0; border-bottom:1px solid var(--line); }
+    .items li:last-child { border-bottom:0; }
+    .items .t { font-size:16.5px; font-weight:650; letter-spacing:-.01em; margin:4px 0 3px; line-height:1.35; }
+    .items .t a { color:var(--ink); }
+    .items .s { color:var(--ink-2); font-size:14px; line-height:1.6; }
+    .items .tags { margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; }
+    .kind { font-size:10px; letter-spacing:.06em; text-transform:uppercase; border:1px solid var(--line-2); border-radius:4px;
+            padding:0 5px; color:var(--muted); line-height:1.6; vertical-align:middle; }
+    .kind.html { color:var(--warn); border-color:#e6d3a3; }
+    .kind.md { color:var(--accent); border-color:#c6d7ec; }
+    .tag { font-size:11.5px; background:var(--hover); color:var(--ink-2); border-radius:4px; padding:1px 7px; }
+    .status { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+    .status.approved { color:var(--ok); } .status.review { color:var(--warn); } .status.deprecated { color:var(--danger); }
+    .muted { color:var(--muted); }
+    .mono { font-family:var(--mono); }
+    .empty { text-align:center; color:var(--muted); padding:40px 12px; }
+    .crumbs { font-size:12.5px; color:var(--muted); margin-bottom:8px; }
+    .crumbs a { color:var(--muted); }
+    h2.listh { font-size:11.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:26px 0 6px;
+               padding-bottom:6px; border-bottom:1px solid var(--line); font-weight:600; }
+
+    table.plain { width:100%; border-collapse:collapse; font-size:14px; }
+    table.plain th, table.plain td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+    table.plain th { color:var(--muted); font-weight:600; font-size:12px; letter-spacing:.06em; text-transform:uppercase; }
+
+    /* timeline */
+    .day h2 { font-size:11.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:28px 0 6px;
+              padding-bottom:6px; border-bottom:1px solid var(--line); font-weight:600; }
+    .day:first-child h2 { margin-top:8px; }
+    .ev { display:grid; grid-template-columns:48px minmax(0,1fr); gap:12px; padding:9px 0; }
+    .ev .tm { color:var(--muted); font-size:12.5px; font-variant-numeric:tabular-nums; padding-top:3px; }
+    .ev .v { font-size:10.5px; font-weight:700; letter-spacing:.04em; color:#fff; background:var(--accent); border-radius:4px;
+             padding:1px 6px; margin-right:6px; vertical-align:middle; }
+    .ev .v.new { background:var(--ok); }
+    .ev .t { font-size:15px; font-weight:600; }
+    .ev .t a { color:var(--ink); }
+    .ev .sub { font-size:12.5px; color:var(--muted); margin:2px 0 0; }
+    .ev .sub a { color:inherit; }
+
+    /* search */
+    .hit mark { background:#fff1b8; padding:0 1px; border-radius:2px; }
+
+    @media (max-width:900px) { aside.side { position:fixed; left:0; background:var(--bg); z-index:15; box-shadow:2px 0 12px rgba(0,0,0,.08); } .sidegrip { display:none; } .top input[type=search] { width:160px; } }
+  </style>
+</head>
+<body>
+<header class="top">
+  <button class="iconbtn" id="menu" title="{{ t('toggle_tree') }}">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
+  </button>
+  <a class="brand" href="/">{{ site_title }}</a>
+  <nav>
+    <a href="/" class="{{ 'active' if request.url.path == '/' else '' }}">{{ t('home') }}</a>
+    <a href="/t" class="{{ 'active' if request.url.path == '/t' else '' }}">{{ t('timeline') }}</a>
+  </nav>
+  <div class="center">
+    {% block headcenter %}
+    <form class="search" action="/search" method="get">
+      <input type="search" name="q" placeholder="{{ t('search_placeholder') }}" value="{{ q or '' }}">
+    </form>
+    {% endblock %}
+  </div>
+  <div class="who">
+    <span class="avatar" title="{{ viewer }}">{{ viewer_label[:2]|upper }}</span>
+    {% if auth_mode == 'fake' %}
+    <select class="viewer" title="{{ t('demo_switch') }}"
+            onchange="location.href='/switch?as='+encodeURIComponent(this.value)+'&next='+encodeURIComponent(location.pathname+location.search)">
+      {% for v in viewers %}<option value="{{ v }}" {{ 'selected' if v == viewer else '' }}>{{ v.split('@')[0] }}</option>{% endfor %}
+    </select>
+    {% else %}
+    <span class="muted" style="font-size:13px">{{ viewer_label }}</span>
+    {% if logout_url %}<a class="muted" style="font-size:13px" href="{{ logout_url }}" title="{{ t('logout') }}">{{ t('logout') }}</a>{% endif %}
+    {% endif %}
+  </div>
+</header>
+<div class="shell" id="shell" data-side-default="{{ side_default|default('1') }}" data-side-scope="{{ side_scope|default('site') }}">
+<script>
+(function () {
+  var shell = document.getElementById('shell');
+  var key = 'docstate.side.' + shell.dataset.sideScope, saved = null;
+  try { saved = localStorage.getItem(key); } catch (e) {}
+  var show = saved === null ? shell.dataset.sideDefault === '1' : saved === '1';
+  shell.classList.toggle('side-hidden', !show);
+  document.getElementById('menu').addEventListener('click', function () {
+    show = !show; shell.classList.toggle('side-hidden', !show);
+    try { localStorage.setItem(key, show ? '1' : '0'); } catch (e) {}
+  });
+
+  // Sidebar width: drag the grip on its right edge, double-click to get the default back.
+  // Remembered site-wide, and applied here so the sidebar never paints at the wrong width.
+  var wkey = 'docstate.side.w', MIN = 200, MAX = 600, w = 0;
+  try { w = parseInt(localStorage.getItem(wkey), 10) || 0; } catch (e) {}
+  if (w >= MIN && w <= MAX) shell.style.setProperty('--side-w', w + 'px');
+  shell.addEventListener('pointerdown', function (e) {
+    var grip = e.target;
+    if (grip.id !== 'sidegrip' || e.button !== 0) return;
+    e.preventDefault();
+    var x0 = e.clientX, w0 = shell.querySelector('aside.side').getBoundingClientRect().width;
+    w = Math.round(w0);
+    function move(ev) { w = Math.max(MIN, Math.min(MAX, Math.round(w0 + ev.clientX - x0))); shell.style.setProperty('--side-w', w + 'px'); }
+    function up() {
+      grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up);
+      grip.classList.remove('on'); document.body.classList.remove('sideresize');
+      try { localStorage.setItem(wkey, String(w)); } catch (e2) {}
+    }
+    grip.setPointerCapture(e.pointerId);            // the pointer stays ours even over the document frame
+    grip.classList.add('on'); document.body.classList.add('sideresize');
+    grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+  });
+  shell.addEventListener('dblclick', function (e) {
+    if (e.target.id !== 'sidegrip') return;
+    shell.style.removeProperty('--side-w');
+    try { localStorage.removeItem(wkey); } catch (e2) {}
+  });
+})();
+</script>
+  <aside class="side">
+    {% block side %}{% include "_side.html" %}{% endblock %}
+  </aside>
+  <div class="sidegrip" id="sidegrip" title="{{ t('sidebar_resize') }}"></div>
+  <main>{% block main %}{% endblock %}</main>
+  {% block rail %}<aside class="railspace" aria-hidden="true"></aside>{% endblock %}
+</div>
+</body>
+</html>

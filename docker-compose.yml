@@ -1,0 +1,88 @@
+# Local development and the test / lint containers.
+#   make up        -> http://localhost:8787 (SQLite in ./data, live reload on src/)
+#   make import    -> import ./examples/docs
+#   make test      -> pytest (SQLite)      make test-pg -> pytest with PostgreSQL too
+#   make lint      -> black / isort / ruff (make fmt formats in place)
+
+x-env: &env
+  DOCSTATE_STORAGE_URL: sqlite:////data/docstate.db
+  DOCSTATE_BASE_URL: http://localhost:8787
+  DOCSTATE_AUTH_MODE: fake
+  DOCSTATE_MCP: "true"
+
+# Mount subdirectories only: mounting the whole tree over /app would hide the image's .venv.
+x-dev-mounts: &dev-mounts
+  - ./packages/docstate/src:/app/packages/docstate/src
+  - ./packages/docstate-mcp/src:/app/packages/docstate-mcp/src
+  - ./examples:/app/examples
+  - ./data:/data
+
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    ports:
+      - "8787:8787"
+    environment: *env
+    volumes: *dev-mounts
+    command: docstate serve --reload
+
+  import:
+    build:
+      context: .
+      target: runtime
+    profiles: ["tools"]
+    environment: *env
+    volumes: *dev-mounts
+    entrypoint: ["docstate", "import"]
+    command: ["/app/examples/docs"]
+
+  test:
+    build:
+      context: .
+      target: test
+    profiles: ["tools"]
+    environment:
+      DOCSTATE_TEST_DB_PATH: /tmp/docstate-test.db
+    volumes:
+      - ./packages:/app/packages
+
+  test-pg:
+    build:
+      context: .
+      target: test
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DOCSTATE_TEST_DB_PATH: /tmp/docstate-test.db
+      DOCSTATE_TEST_POSTGRES_URL: postgresql://docstate:docstate@postgres:5432/docstate
+    volumes:
+      - ./packages:/app/packages
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["tools"]
+    environment:
+      POSTGRES_USER: docstate
+      POSTGRES_PASSWORD: docstate
+      POSTGRES_DB: docstate
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docstate"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  lint:
+    build:
+      context: .
+      target: test
+    profiles: ["tools"]
+    volumes:
+      - ./packages:/app/packages
+    command: >
+      uv run sh -c "black --check packages
+      && isort --check-only packages
+      && ruff check packages"

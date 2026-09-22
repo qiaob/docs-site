@@ -1,0 +1,66 @@
+{# A directory's README.md rendered in place (same sandboxed frame as a document
+   page, without the outline rail); the shell part mirrors doc.html. #}
+{% if readme %}
+<style>
+  .readme { margin: 6px 0 26px; }
+  .readme-head { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); margin-bottom:8px; }
+  .readme-head .tag { font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:650; color:var(--ink-2);
+                      background:var(--hover); padding:2px 7px; border-radius:6px; }
+  .readme-head a { color:var(--ink-2); }
+  /* no box: the README reads as part of the page, exactly like a document page */
+  .readme .docframe { display:block; width:100%; border:0; background:var(--bg); min-height:80px; height:320px; }
+</style>
+<section class="readme">
+  <div class="readme-head">
+    <span class="tag">README</span>
+    <a href="/d/{{ readme.slug }}">{{ readme.title }}</a>
+    <span>· v{{ readme.latest_version }} · {{ readme.updated_at|local("%Y-%m-%d") }} · {{ readme.created_by.split('@')[0] }}</span>
+  </div>
+  <iframe id="readmeframe" class="docframe" src="/raw/{{ readme.slug }}/{{ readme.latest_version }}?embed=1" sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals" title="{{ readme.title }}"></iframe>
+</section>
+<script>
+(function () {
+  var frame = document.getElementById('readmeframe');
+  var base = {{ base_url|tojson }}, slug = {{ readme.slug|tojson }}, version = {{ readme.latest_version }}, viewer = {{ viewer|tojson }};
+
+  // wheel gestures stay on this page's compositor (see doc.html)
+  var peTimer = null;
+  function quietFrame() {
+    if (peTimer === null) frame.style.pointerEvents = 'none';
+    clearTimeout(peTimer);
+    peTimer = setTimeout(function () { frame.style.pointerEvents = ''; peTimer = null; }, 150);
+  }
+  window.addEventListener('wheel', quietFrame, { passive: true });
+
+  function reply(source, id, result, error) {
+    source.postMessage({ __docbridge: 1, type: 'reply', id: id, result: result, error: error }, '*');
+  }
+  async function api(method, key, scope, value) {
+    var url = '/api/state/' + encodeURIComponent(slug) + '/' + encodeURIComponent(key) + '?scope=' + encodeURIComponent(scope);
+    var opts = { method: method, headers: { 'X-Requested-With': 'docstate' } };
+    if (method === 'PUT') { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify({ value: value }); }
+    var r = await fetch(url, opts);
+    if (!r.ok) throw new Error('state api ' + r.status);
+    return (await r.json()).value;
+  }
+  window.addEventListener('message', async function (ev) {
+    if (ev.source !== frame.contentWindow) return;
+    var d = ev.data; if (!d || d.__docbridge !== 1) return;
+    if (d.type === 'height') { frame.style.height = Math.max(120, Math.min(d.height, 60000)) + 'px'; return; }
+    if (d.type === 'wheel') { quietFrame(); return; }
+    if (d.type === 'ready') {
+      ev.source.postMessage({ __docbridge: 1, type: 'ctx', payload: { slug: slug, version: version, viewer: viewer, base: base } }, '*');
+      return;
+    }
+    if (d.type === 'navigate') { if (/^\/(d|c|t)?(\/|\?|$)/.test(d.href || '')) location.href = d.href; return; }
+    if (d.type === 'state.get' || d.type === 'state.set') {
+      var p = d.payload || {}; var scope = p.scope === 'shared' ? 'shared' : 'me';
+      try {
+        var v = await api(d.type === 'state.set' ? 'PUT' : 'GET', String(p.key || ''), scope, p.value);
+        reply(ev.source, d.id, v, null);
+      } catch (e) { reply(ev.source, d.id, null, String(e && e.message || e)); }
+    }
+  });
+})();
+</script>
+{% endif %}

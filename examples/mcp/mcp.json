@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "docstate": {
+      "command": "uvx",
+      "args": ["docstate-mcp"],
+      "env": {
+        "DOCSTATE_URL": "https://docs.example.com",
+        "DOCSTATE_TOKEN": "<token>",
+        "DOCSTATE_AUTHOR": "you@example.com"
+      }
+    }
+  }
+}

@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.title }} · {{ site_title }}{% endblock %}
+
+{% block headcenter %}
+<style>
+  .doctitle { display:flex; align-items:center; gap:8px; min-width:0; flex:1; }
+  .doctitle .cat { color:var(--muted); font-size:12.5px; white-space:nowrap; }
+  .dd { position:relative; min-width:0; }
+  .dd summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:8px;
+                font-weight:650; font-size:14.5px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:56vw; }
+  .dd summary::-webkit-details-marker { display:none; }
+  .dd summary:hover { background:var(--hover); }
+  .dd summary svg { width:14px; height:14px; color:var(--muted); flex:none; }
+  .dd .menu { position:absolute; left:0; top:calc(100% + 6px); background:#fff; border:1px solid var(--line); border-radius:10px;
+              box-shadow:0 8px 24px rgba(0,0,0,.08); min-width:340px; padding:6px; z-index:30; }
+  .dd .menu a { display:flex; justify-content:space-between; gap:12px; padding:8px 10px; border-radius:7px; color:var(--ink); font-size:13.5px; }
+  .dd .menu a:hover { background:var(--hover); text-decoration:none; }
+  .dd .menu a.cur { background:var(--accent-soft); }
+  .dd .menu a small { color:var(--muted); white-space:nowrap; }
+  .dd .menu .lbl { color:var(--ink-2); font-weight:400; margin-left:6px; }
+  .acts { display:flex; align-items:center; gap:14px; font-size:13px; flex:none; }
+  .acts a { color:var(--muted); white-space:nowrap; }
+  .acts a:hover { color:var(--ink); text-decoration:none; }
+  .acts .iconbtn.on { color:var(--ink); background:var(--hover); }
+</style>
+<div class="doctitle">
+  <span class="cat">{{ doc.category|replace('/', ' / ') }}</span>
+  <details class="dd" id="verdd">
+    <summary title="{{ t('switch_version') }}">{{ doc.title }}{% if not is_latest %} <small class="muted">v{{ version.version_no }}</small>{% endif %}
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8l4 4 4-4"/></svg>
+    </summary>
+    <div class="menu">
+      {% for v in versions %}
+      <a href="/d/{{ doc.slug }}{% if v.version_no != doc.latest_version %}?v={{ v.version_no }}{% endif %}" class="{{ 'cur' if v.version_no == version.version_no else '' }}">
+        <span>v{{ v.version_no }}{% if v.version_no == doc.latest_version %} <small>{{ t('latest') }}</small>{% endif %}{% if v.label %}<span class="lbl">{{ v.label }}</span>{% endif %}</span>
+        <small>{{ v.created_at|local("%m-%d %H:%M") }} · {{ v.created_by.split('@')[0] }}</small>
+      </a>
+      {% endfor %}
+    </div>
+  </details>
+</div>
+<div class="acts">
+  <a href="/d/{{ doc.slug }}/versions">{{ t('versions') }}</a>
+  <a href="{{ raw_url }}" target="_blank" rel="noopener">{{ t('raw') }}</a>
+  <a href="/src/{{ doc.slug }}/{{ version.version_no }}" title="{{ t('download_source', kind=doc.kind) }}">{{ t('source_file') }}</a>
+  <button class="iconbtn" id="fsbtn" title="{{ t('fullscreen') }}">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 3H3v4.5M12.5 3H17v4.5M17 12.5V17h-4.5M3 12.5V17h4.5"/></svg>
+  </button>
+  <button class="iconbtn" id="railbtn" title="{{ t('toggle_outline') }}">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 5h12M4 10h8M4 15h10"/></svg>
+  </button>
+</div>
+{% endblock %}
+
+{% block main %}
+<style>
+  .docwrap { max-width:1120px; margin:0 auto; padding:6px 12px 60px; }  /* + the document's 24px = the page's 36px */
+  /* An HTML document carries its own layout, so the reading measure that suits
+     Markdown only squeezes it: give it the whole main area. */
+  .docwrap.own-layout { max-width:none; }
+  /* Full-screen preview: the document alone, filling the screen and scrolling
+     inside its own frame. Esc leaves it. */
+  .docwrap:fullscreen, .docwrap.fs-fallback { max-width:none; margin:0; padding:0; background:var(--bg); }
+  .docwrap.fs-fallback { position:fixed; inset:0; z-index:60; overflow:hidden; }
+  .docwrap:fullscreen .docframe, .docwrap.fs-fallback .docframe { height:100vh !important; border:0; }
+  .docwrap:fullscreen .notice, .docwrap.fs-fallback .notice { display:none; }
+  .fs-tip { position:fixed; top:14px; right:16px; z-index:61; display:none; align-items:center; gap:8px;
+            font-size:12.5px; color:var(--ink-2); background:rgba(255,255,255,.92); border:1px solid var(--line);
+            border-radius:999px; padding:6px 13px; box-shadow:0 4px 16px rgba(0,0,0,.10);
+            animation:fsfade 3.4s ease forwards; }
+  .docwrap:fullscreen .fs-tip, .docwrap.fs-fallback .fs-tip { display:inline-flex; }
+  .fs-tip kbd { font:600 11px var(--font); background:#efefec; border:1px solid var(--line); border-bottom-width:2px;
+                border-radius:5px; padding:1px 6px; }
+  @keyframes fsfade { 0%,72% { opacity:1; } 100% { opacity:0; visibility:hidden; } }
+  .notice { background:#fff6dc; color:#6b4e00; border:1px solid #e2c67f; padding:8px 14px; border-radius:8px; font-size:13px; margin:12px 0 4px; }
+  /* opaque background: an opaque out-of-process frame composites cheaper than a transparent one */
+  .docframe { display:block; width:100%; border:0; background:var(--bg); min-height:300px; height:600px; }
+  aside.rail { position:sticky; top:52px; height:calc(100vh - 52px); overflow:auto; padding:22px 18px 30px 8px; }
+  /* hiding the outline keeps its column, so the text never jumps sideways */
+  .shell.rail-hidden aside.rail { visibility:hidden; }
+  .rail ol { list-style:none; margin:0; padding:0; border-left:1px solid var(--line); }
+  .rail li a { display:block; padding:4px 10px; color:var(--muted); font-size:13px; line-height:1.45; border-left:2px solid transparent; margin-left:-1px; }
+  .rail li a:hover { color:var(--ink); text-decoration:none; }
+  .rail li.l1 a { font-weight:600; color:var(--ink-2); }
+  .rail li.l3 a { padding-left:22px; font-size:12.5px; }
+  .rail li a.active { color:var(--ink); border-left-color:var(--accent); font-weight:600; }
+  .rail .none { color:var(--muted); font-size:12.5px; padding:4px 10px; }
+</style>
+<article class="docwrap{% if doc.kind == 'html' %} own-layout{% endif %}">
+  {% if not is_latest %}
+  <div class="notice">{{ t('old_version_notice', v=version.version_no, time=version.created_at|local, latest=doc.latest_version) }} <a href="/d/{{ doc.slug }}">{{ t('back_to_latest') }}</a></div>
+  {% endif %}
+  <iframe id="docframe" class="docframe" src="{{ raw_url }}" sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals" title="{{ doc.title }}"></iframe>
+  <div class="fs-tip"><kbd>Esc</kbd> {{ t('esc_exit') }}</div>
+</article>
+{% endblock %}
+
+{% block rail %}
+<aside class="rail" id="rail">
+  <h4>{{ t('outline') }}</h4>
+  <ol id="toc"><li class="none">{{ t('outline_loading') }}</li></ol>
+</aside>
+<script>
+(function () {
+  var frame = document.getElementById('docframe');
+  var base = {{ base_url|tojson }}, slug = {{ doc.slug|tojson }}, version = {{ version.version_no }}, viewer = {{ viewer|tojson }};
+  var OUTLINE_EMPTY = {{ t('outline_empty')|tojson }};
+  var shell = document.getElementById('shell'), rail = document.getElementById('rail'), tocEl = document.getElementById('toc');
+  var toc = [];
+
+  // version dropdown closes on outside click
+  var dd = document.getElementById('verdd');
+  document.addEventListener('click', function (e) { if (dd.open && !dd.contains(e.target)) dd.open = false; });
+
+  // full-screen preview: the document alone on the screen. Uses the browser's
+  // fullscreen where allowed, and a fixed overlay where it is not.
+  var wrap = document.querySelector('.docwrap');
+  var fsbtn = document.getElementById('fsbtn');
+  function remeasure(delay) {
+    cachedTop = null;
+    setTimeout(function () {
+      try { frame.contentWindow.postMessage({ __docbridge: 1, type: 'remeasure' }, '*'); } catch (e) {}
+    }, delay || 60);
+  }
+  function fallbackOn() {
+    wrap.classList.add('fs-fallback');
+    fsbtn.classList.add('on');
+    document.body.style.overflow = 'hidden';
+  }
+  function fallbackOff() {
+    wrap.classList.remove('fs-fallback');
+    fsbtn.classList.remove('on');
+    document.body.style.overflow = '';
+    remeasure();
+  }
+  fsbtn.addEventListener('click', function () {
+    if (wrap.classList.contains('fs-fallback')) { fallbackOff(); return; }
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    var req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+    if (!req) { fallbackOn(); return; }
+    var p = req.call(wrap);
+    if (p && p.catch) p.catch(fallbackOn);
+  });
+  document.addEventListener('fullscreenchange', function () {
+    var on = document.fullscreenElement === wrap;
+    fsbtn.classList.toggle('on', on);
+    if (!on) remeasure(120);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && wrap.classList.contains('fs-fallback')) fallbackOff();
+  });
+  // right rail (document outline) show / hide, remembered
+  var railKey = 'docstate.rail', railShow = true;
+  try { railShow = localStorage.getItem(railKey) !== '0'; } catch (e) {}
+  function applyRail() { shell.classList.toggle('rail-hidden', !railShow); document.getElementById('railbtn').classList.toggle('on', railShow); }
+  applyRail();
+  document.getElementById('railbtn').addEventListener('click', function () {
+    railShow = !railShow; applyRail(); try { localStorage.setItem(railKey, railShow ? '1' : '0'); } catch (e) {}
+  });
+
+  // Layout reads are cached: the frame's top only moves when something above it
+  // changes size, never while scrolling.
+  var cachedTop = null, tocLinks = [], activeIdx = -1, ticking = false;
+  function frameTop() {
+    if (cachedTop === null) cachedTop = frame.getBoundingClientRect().top + window.scrollY;
+    return cachedTop;
+  }
+  window.addEventListener('resize', function () { cachedTop = null; }, { passive: true });
+
+  function renderToc(items) {
+    toc = items || [];
+    tocLinks = []; activeIdx = -1;
+    if (!toc.length) { tocEl.innerHTML = ''; var li0 = document.createElement('li'); li0.className = 'none'; li0.textContent = OUTLINE_EMPTY; tocEl.appendChild(li0); return; }
+    tocEl.innerHTML = '';
+    toc.forEach(function (it, i) {
+      var li = document.createElement('li'); li.className = 'l' + it.level;
+      var a = document.createElement('a'); a.href = '#' + it.id; a.textContent = it.text;
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        cachedTop = null;
+        window.scrollTo({ top: frameTop() + it.top - 64, behavior: 'smooth' });
+      });
+      li.appendChild(a); tocEl.appendChild(li); tocLinks.push(a);
+    });
+    markActive();
+  }
+  function markActive() {
+    ticking = false;
+    if (!toc.length) return;
+    var y = window.scrollY + 90 - frameTop(), idx = -1;
+    for (var i = 0; i < toc.length; i++) { if (toc[i].top <= y) idx = i; }
+    if (idx === activeIdx) return;                       // no DOM writes unless it changed
+    if (activeIdx >= 0) tocLinks[activeIdx].classList.remove('active');
+    if (idx >= 0) tocLinks[idx].classList.add('active');
+    activeIdx = idx;
+  }
+  // One highlight pass per animation frame at most.
+  function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(markActive); } }
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  // During a wheel gesture, keep wheel events away from the sandboxed
+  // (out-of-process) frame so the scroll stays on this page's compositor. The
+  // frame reports the first wheel it receives (see docbridge.js); after that
+  // the events land here directly. Pointer events come back 150ms after the
+  // wheel goes quiet. Only wheel triggers this, never programmatic scrolls, so
+  // clicks right after a TOC jump are unaffected.
+  var peTimer = null;
+  function quietFrame() {
+    if (peTimer === null) frame.style.pointerEvents = 'none';
+    clearTimeout(peTimer);
+    peTimer = setTimeout(function () { frame.style.pointerEvents = ''; peTimer = null; }, 150);
+  }
+  window.addEventListener('wheel', quietFrame, { passive: true });
+
+  function reply(source, id, result, error) {
+    source.postMessage({ __docbridge: 1, type: 'reply', id: id, result: result, error: error }, '*');
+  }
+  async function api(method, key, scope, value) {
+    var url = '/api/state/' + encodeURIComponent(slug) + '/' + encodeURIComponent(key) + '?scope=' + encodeURIComponent(scope);
+    var opts = { method: method, headers: { 'X-Requested-With': 'docstate' } };
+    if (method === 'PUT') { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify({ value: value }); }
+    var r = await fetch(url, opts);
+    if (!r.ok) throw new Error('state api ' + r.status);
+    return (await r.json()).value;
+  }
+  window.addEventListener('message', async function (ev) {
+    if (ev.source !== frame.contentWindow) return;           // only our own frame
+    var d = ev.data; if (!d || d.__docbridge !== 1) return;
+    if (d.type === 'height') { frame.style.height = Math.max(300, Math.min(d.height, 60000)) + 'px'; cachedTop = null; return; }
+    if (d.type === 'toc') { renderToc(d.items); return; }
+    if (d.type === 'wheel') { quietFrame(); return; }
+    if (d.type === 'ready') {
+      ev.source.postMessage({ __docbridge: 1, type: 'ctx', payload: { slug: slug, version: version, viewer: viewer, base: base } }, '*');
+      return;
+    }
+    if (d.type === 'navigate') { if (/^\/(d|c|t)?(\/|\?|$)/.test(d.href || '')) location.href = d.href; return; }
+    if (d.type === 'state.get' || d.type === 'state.set') {
+      var p = d.payload || {}; var scope = p.scope === 'shared' ? 'shared' : 'me';
+      try {
+        var v = await api(d.type === 'state.set' ? 'PUT' : 'GET', String(p.key || ''), scope, p.value);
+        reply(ev.source, d.id, v, null);
+      } catch (e) { reply(ev.source, d.id, null, String(e && e.message || e)); }
+    }
+  });
+})();
+</script>
+{% endblock %}

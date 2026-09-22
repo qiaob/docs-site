@@ -1,0 +1,17 @@
+{# Sidebar file tree: subdirectories first, then the documents in the directory.
+   Everything starts collapsed; only the path to the current page is open. #}
+{% macro tree(nodes, current, mode='c', current_slug='', depth=0) -%}
+{%- for n in nodes %}
+  {%- set href = ('/t?category=' ~ n.path) if mode == 't' else ('/c/' ~ n.path) %}
+  {%- set on_path = current == n.path or current.startswith(n.path ~ '/') %}
+  <details{{ ' open' if on_path else '' }}>
+    <summary><span class="tri">&#9654;</span><a href="{{ href }}" class="{{ 'active' if (current == n.path and not current_slug) else '' }}">{{ n.name }}</a><span class="count">{{ n.count }}</span></summary>
+    <div>
+      {{- tree(n.children, current, mode, current_slug, depth + 1) }}
+      {%- for d in n.docs %}
+      <div class="file"><a href="/d/{{ d.slug }}" class="{{ 'active' if current_slug == d.slug else '' }}" title="{{ d.file or d.title }}">{{ d.title }}</a>{% if d.kind == 'html' %}<span class="kind">html</span>{% endif %}</div>
+      {%- endfor %}
+    </div>
+  </details>
+{%- endfor %}
+{%- endmacro %}

@@ -1,0 +1,19 @@
+<ul class="items">
+{% for d in docs %}
+<li>
+  <div class="eyebrow">
+    <a href="/c/{{ d.category }}">{{ d.category|replace('/', ' · ') }}</a>
+    <span>·</span><span>{{ d.updated_at|local("%Y-%m-%d") }}</span>
+    <span>·</span><span>{{ d.created_by.split('@')[0] }}</span>
+    <span>·</span><span>v{{ d.latest_version }}</span>
+    <span class="kind {{ d.kind }}">{{ d.kind }}</span>
+    {% if d.status != 'approved' %}<span class="status {{ d.status }}">{{ d.status }}</span>{% endif %}
+  </div>
+  <div class="t"><a href="/d/{{ d.slug }}">{{ d.title }}</a></div>
+  {% if d.summary %}<div class="s">{{ d.summary }}</div>{% endif %}
+  {% if d.tags %}<div class="tags">{% for tg in d.tags %}<span class="tag">{{ tg }}</span>{% endfor %}</div>{% endif %}
+</li>
+{% else %}
+<li class="empty">{{ t('no_docs') }}</li>
+{% endfor %}
+</ul>
